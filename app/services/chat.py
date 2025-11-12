@@ -27,6 +27,8 @@ class ChatService:
             self.client = openai.OpenAI(api_key=settings.openai_api_key)
             self.model = settings.openai_chat_model
         elif self.provider == "anthropic":
+            if not settings.anthropic_api_key or settings.anthropic_api_key.strip() == "":
+                logger.warning("ANTHROPIC_API_KEY is empty or not set. API calls will fail.")
             self.client = anthropic.Anthropic(api_key=settings.anthropic_api_key)
             self.model = settings.anthropic_chat_model
         else:
@@ -99,7 +101,17 @@ class ChatService:
             
         except Exception as e:
             logger.error(f"Failed to generate answer: {e}")
-            return f"I encountered an error while processing your question: {str(e)}"
+            error_str = str(e)
+            
+            # Check for Anthropic authentication errors
+            if 'x-api-key' in error_str.lower() or 'authentication_error' in error_str.lower():
+                error_msg = (
+                    "API authentication failed. Please check that ANTHROPIC_API_KEY is set correctly "
+                    "in your environment variables. Get your key from https://console.anthropic.com/settings/keys"
+                )
+                return f"I encountered an error while processing your question: {error_msg}"
+            
+            return f"I encountered an error while processing your question: {error_str}"
 
 
 # Global service instance
